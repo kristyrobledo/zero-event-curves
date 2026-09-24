@@ -180,8 +180,8 @@ evaluate_curve_at <- function(curve_df, time_point, column = "event_free_curve")
 #'
 #' @return A data.frame with one row per element of `times_grid` (per
 #'   group, if `group` is supplied):
-#'   time, estimate (from the original data), se, ci_lower, ci_upper,
-#'   n_boot_used (resamples whose own follow-up reached that time --
+#'   time, n_at_risk (from the original data), estimate (from the original
+#'   data), se, ci_lower, ci_upper, n_boot_used (resamples whose own follow-up reached that time --
 #'   this can vary across grid points, and is worth checking near the
 #'   end of follow-up where it may drop off), group (only if supplied).
 bootstrap_event_free_band <- function(time, group = NULL, times_grid = NULL,
@@ -214,6 +214,9 @@ bootstrap_event_free_band <- function(time, group = NULL, times_grid = NULL,
   point_est <- vapply(times_grid, function(tp) {
     evaluate_curve_at(point_curve, tp, column)
   }, numeric(1))
+  n_at_risk <- vapply(times_grid, function(tp) {
+    sum(time >= tp)
+  }, integer(1))
 
   ng <- length(times_grid)
   mat <- matrix(NA_real_, nrow = B, ncol = ng)
@@ -248,6 +251,7 @@ bootstrap_event_free_band <- function(time, group = NULL, times_grid = NULL,
 
   data.frame(
     time        = times_grid,
+    n_at_risk   = n_at_risk,
     estimate    = point_est,
     se          = se,
     ci_lower    = ci[1, ],
