@@ -449,3 +449,68 @@ bootstrap_event_free <- function(time, time_point, group = NULL,
     n_boot_used = row$n_boot_used
   )
 }
+
+followup_maturity <- function(data,
+                              followup,
+                              horizon = 3,
+                              group = NULL,
+                              weights = NULL) {
+  followup <- enquo(followup)
+  group <- enquo(group)
+  weights <- enquo(weights)
+
+  # Create follow-up truncated at the target horizon
+  dat <- data %>%
+    mutate(
+      .followup = !!followup,
+      .followup_trunc = pmin(.followup, horizon)
+    )
+
+  # Optional grouping
+  if (!quo_is_null(group)) {
+    dat <- dat %>% group_by(!!group)
+  }
+
+  # Unweighted analysis
+  if (quo_is_null(weights)) {
+    out <- dat %>%
+      summarise(
+        n = n(),
+        total_exposure = sum(.followup_trunc, na.rm = TRUE),
+        followup_maturity = total_exposure / (n * horizon),
+        effective_n = total_exposure / horizon,
+        .groups = "drop"
+      )
+  } else {
+    # Weighted analysis
+    dat <- dat %>%
+      mutate(.weight = !!weights)
+
+    out <- dat %>%
+      summarise(
+        n = n(),
+
+        # Sum of weights
+        sum_weights = sum(.weight, na.rm = TRUE),
+
+        # Weighted follow-up accumulated by the target horizon
+        weighted_exposure =
+          sum(.weight * .followup_trunc, na.rm = TRUE),
+
+        # Proportion of potentially observable weighted follow-up accrued
+        followup_maturity =
+          weighted_exposure / (horizon * sum_weights),
+
+        # Equivalent weighted number completely followed to horizon
+        effective_n_followup =
+          weighted_exposure / horizon,
+
+        # Conventional effective sample size due to weighting
+        effective_n_weights =
+          sum_weights^2 / sum(.weight^2, na.rm = TRUE),
+        .groups = "drop"
+      )
+  }
+
+  out
+}
