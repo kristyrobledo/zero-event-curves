@@ -2,6 +2,7 @@
 source("utils.R")
 library(readxl)
 library(tidyverse)
+library(rlang)
 
 shape <- readxl::read_excel("C:/Users/kman2804/OneDrive - The University of Sydney (Staff)/1. RESEARCH PROJECTS/3. GYNO ONC/CRE ALIVEWELL/LACC_shape/Shape/SHAPE_balance_table_KM_coordinates.xlsx",
   sheet = "SHAPEM_by_surgery group"
@@ -92,6 +93,18 @@ write.csv(all_est_3yr, "all_est_3yr.csv", row.names = FALSE)
 write.csv(shape_est_3yr, "shape_est_3yr.csv", row.names = FALSE)
 write.csv(lacc_est_3yr, "lacc_est_3yr.csv", row.names = FALSE)
 
+## get median FU time from inverse KM by trial
+library(survival)
+
+Surv_lacc <- Surv(lacc$dfsdays / 365.25, rep(1, nrow(lacc))) # Assuming all events are observed
+survfit(Surv_lacc ~ 1)
+
+# get median survival
+
+Surv_shape <- Surv(shape$Time_years, rep(1, nrow(shape))) # Assuming all events are observed
+survfit(Surv_shape ~ 1)
+
+
 ## check 10 000
 all_est_3yr10000 <- bootstrap_event_free_band(
   all$dfsyrs,
@@ -102,6 +115,21 @@ all_est_3yr10000 <- bootstrap_event_free_band(
 )
 
 all_est_3yr10000
+
+## maturity of data
+followup_maturity(
+  data = lacc,
+  followup = dfsdays / 365.25,
+  horizon = 3,
+  group = AlloTreat
+)
+
+followup_maturity(
+  data = shape,
+  followup = Time_years,
+  horizon = 3,
+  group = Stratum
+)
 
 ## look at difference in 3 year estimates
 diff.all <- bootstrap_event_free_diff(
